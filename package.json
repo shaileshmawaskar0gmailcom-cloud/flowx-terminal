@@ -1,0 +1,29 @@
+{
+  "name": "flowx-terminal",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "FlowX Terminal: standalone, analysis-focused order-flow terminal. Requirements: docs/ATAS_FEATURE_SPEC.md. Plan: docs/IMPLEMENTATION_PLAN.md.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "guard": "node tools/guards/run.mjs",
+    "guard:test": "node --test tools/guards/guards.test.mjs",
+    "lint": "eslint .",
+    "typecheck": "node tools/typecheck.mjs",
+    "test": "vitest run --passWithNoTests",
+    "check": "pnpm guard:test && pnpm guard && pnpm lint && pnpm typecheck && pnpm test"
+  },
+  "devDependencies": {
+    "eslint": "^9.29.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "^8.35.0",
+    "vitest": "^3.2.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
