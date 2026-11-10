@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run checks
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set +e
+          echo "## CI report for ${HEAD_SHA::7}" > ci-report.md
+          fail=0
+          run() {
+            name="$1"; shift
+            "$@" > step.log 2>&1
+            code=$?
+            cat step.log
+            status=PASS; open=""
+            if [ $code -ne 0 ]; then status=FAIL; open=" open"; fail=1; fi
+            {
+              echo "<details$open><summary>$status: $name</summary>"
+              echo
+              echo '```'
+              tail -n 40 step.log
+              echo '```'
+              echo "</details>"
+              echo
+            } >> ci-report.md
+          }
+          run "install" pnpm install --no-frozen-lockfile
+          run "guard tests" node --test tools/guards/guards.test.mjs
+          run "guards" node tools/guards/run.mjs
+          run "lint" pnpm lint
+          run "typecheck" pnpm typecheck
+          run "unit tests" pnpm test
+          exit $fail
+      - name: Post report to the pull request
+        if: always() && github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh pr comment "$PR" --edit-last --create-if-none --body-file ci-report.md || gh pr comment "$PR" --body-file ci-report.md
